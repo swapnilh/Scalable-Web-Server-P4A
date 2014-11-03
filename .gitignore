@@ -1,0 +1,8 @@
+client
+client.o
+cs537.o
+output.cgi
+request.o
+server
+server.o
+tags
