@@ -11,7 +11,7 @@
 // Repeatedly handles HTTP requests sent to this port number.
 // Most of the work is done within routines written in request.c
 //
-int listenfd, connfd, buffer;
+int listenfd, connfd;
 pthread_cond_t  work = PTHREAD_COND_INITIALIZER;
 pthread_cond_t  mast = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -31,12 +31,10 @@ void *workerStuff(void *arg) {
 	while (1) {
 		pthread_mutex_lock(&mutex);
 		printf("Worker locks\n");
-		if (buffer==0)
-			pthread_cond_wait(&work, &mutex);
+		pthread_cond_wait(&work, &mutex);
 		printf("AFter signal worker\n");
 		requestHandle(connfd);
 		Close(connfd);
-		buffer--;
 		pthread_cond_signal(&mast);
 		pthread_mutex_unlock(&mutex);
 		printf("Worker unlocks\n");
@@ -49,13 +47,11 @@ void *masterStuff(void *arg) {
 	int clientlen;
 	struct sockaddr_in clientaddr;
 	clientlen = sizeof(clientaddr);
-	buffer=0;
 
 	while (1) {
 		pthread_mutex_lock(&mutex);
 		printf("Master locks\n");
 		connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
-		buffer++;
 		printf("Before signal master\n");
 		pthread_cond_signal(&work);
 		pthread_cond_wait(&mast, &mutex);
