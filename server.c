@@ -42,16 +42,21 @@ void *workerStuff(void *arg) {
 	int tempconnfd;
 	while (1) {
 		pthread_mutex_lock(&mutex);
-//		printf("Worker locks\n");
+		printf("Worker locks\n");
 		while (head == tail) {
+			printf("Queue empty, worker will wait\n");
 			pthread_cond_wait(&work, &mutex);
 		}
 		tempconnfd = buffer[tail];
-		tail++;
+		tail=(tail==bufferMax)?0:tail+1;
 		printf("worker pid=%lu connfd=%d buffer=%p buffer[tail-1]=%d\n", (unsigned long)pthread_self(),tempconnfd, buffer, buffer[tail-1]);
-		pthread_cond_signal(&mast);
+		pthread_cond_signal(&work); //Signal other worker threads FIXME is this needed?
+		if (head+2%bufferMax == tail) {
+			pthread_cond_signal(&mast);
+			printf("Waking up the master\n");
+		}
 		pthread_mutex_unlock(&mutex);
-//		printf("Worker unlocks\n");
+		printf("Worker unlocks\n");
 		requestHandle(tempconnfd);
 		Close(tempconnfd);
 	}
@@ -63,21 +68,25 @@ void *masterStuff(void *arg) {
 	struct sockaddr_in clientaddr;
 	clientlen = sizeof(clientaddr);
 	int *buffer = (int *)(arg);
+	int next_head=0;
 	while (1) {
+		printf("before accept!\n");
 		tempconnfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
+		printf("after accept!\n");
 		pthread_mutex_lock(&mutex);
 		printf("Master locks\n");
 //		printf("confd=%d\n",connfd);
-		while(head+1 == tail) { // Queue full !
+		next_head=(head==bufferMax)?0:head+1;
+		while(next_head == tail) { // Queue full !
+			printf("Queue full, master will wait\n");
 			pthread_cond_wait(&mast, &mutex);
 		}
-		printf("head=%d tail=%d master connfd=%d buffer=%p\n",head, tail, tempconnfd, buffer);
 		buffer[head] = tempconnfd;
-		head++;
-//		printf("Before signal master, buffer[head-1]=%d\n",buffer[head-1]);
+		head = next_head;
+		printf("head=%d tail=%d master connfd=%d \n",head, tail, tempconnfd);
 		pthread_cond_signal(&work);
 		pthread_mutex_unlock(&mutex);
-//		printf("Master unlocks\n");
+		printf("Master unlocks\n");
 	}
 	return NULL;
 }

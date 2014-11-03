@@ -160,7 +160,7 @@ void requestHandle(int fd)
    Rio_readlineb(&rio, buf, MAXLINE);
    sscanf(buf, "%s %s %s", method, uri, version);
 
-   printf("%s %s %s\n", method, uri, version);
+   printf("HANDLING REQUEST! %s %s %s\n", method, uri, version);
 
    if (strcasecmp(method, "GET")) {
       requestError(fd, method, "501", "Not Implemented", "CS537 Server does not implement this method");
