@@ -24,11 +24,11 @@ void getargs(int *port, int *numThreads, int *bufferMax, int argc, char *argv[])
 	fprintf(stderr, "Usage: %s <portnum> <threads> <buffers>\n", argv[0]);
 	exit(1);
     }
-    if (argv[2] <= 0) {
+    if (atoi(argv[2]) <= 0) {
 	fprintf(stderr, "Number of threads should be greater than 0!\n");
 	exit(1);
     }
-    if (argv[3] <= 0) {
+    if (atoi(argv[3]) <= 0) {
 	fprintf(stderr, "Buffer size should be greater than 0!\n");
 	exit(1);
     }
