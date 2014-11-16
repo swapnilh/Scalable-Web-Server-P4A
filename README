@@ -5,6 +5,11 @@ CSL-ID: haseeb
 (Leave the second name and ID blank if working alone)
 
 Linux-Implementation Details:
+For the producer consumer problem we basically had our single master producer looping in main, accepting a request, putting the fd onto the buffer and signalling one of the workers at the end in every iteration.
+The master went to sleep when the circular buffer got full. The worker threads operating in the workerStuff function would process the requests upon waking and signal the master when the buffer was non-full.
+The general rules for locking first and then sleeping within a while loop to check the state were followed.
+For the extra credit the heap data structure was used to implement the priority queue upon request sizes. The priority was set by the master producer by reading in the file size of the request. The consumer's would then dequeue the request with the highest priority. The functionality of the requestHandle() had to be moved outside and given to the worker threads because the once the request buffer was read from the Rio struct it would lose that request.
+So the workers would process the request buffer indirectly by the master having to save it first.
 
 XV6-Implementation Details:
 
