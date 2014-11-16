@@ -12,7 +12,8 @@
 // Repeatedly handles HTTP requests sent to this port number.
 // Most of the work is done within routines written in request.c
 //
-int listenfd, connfd, bufferMax, head, tail;
+int listenfd, connfd, bufferMax, head=0, tail=0,count=0;
+int *buffer;
 pthread_cond_t  work = PTHREAD_COND_INITIALIZER;
 pthread_cond_t  mast = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -38,31 +39,34 @@ void getargs(int *port, int *numThreads, int *bufferMax, int argc, char *argv[])
 }
 
 void *workerStuff(void *arg) {
-	int *buffer = (int *)(arg);
+//	int *buffer = (int *)(arg);
 	int tempconnfd;
 	while (1) {
+//		int wake=0;
 		pthread_mutex_lock(&mutex);
-		printf("Worker locks\n");
-		while (head == tail) {
-			printf("Queue empty, worker will wait\n");
+//		printf("Worker locks\n");
+		while (count == 0) {
+//			printf("Queue empty, worker will wait\n");
 			pthread_cond_wait(&work, &mutex);
 		}
 		tempconnfd = buffer[tail];
-		tail=(tail==bufferMax)?0:tail+1;
-		printf("worker pid=%lu connfd=%d buffer=%p buffer[tail-1]=%d\n", (unsigned long)pthread_self(),tempconnfd, buffer, buffer[tail-1]);
-		pthread_cond_signal(&work); //Signal other worker threads FIXME is this needed?
-		if (head+2%bufferMax == tail) {
+//		wake=(count==bufferMax)?1:0;
+		count--;
+		tail=(tail+1==bufferMax)?0:tail+1;
+//		printf("worker pid=%lu connfd=%d buffer=%p buffer[tail-1]=%d\n", (unsigned long)pthread_self(),tempconnfd, buffer, buffer[tail-1]);
+//		pthread_cond_signal(&work); //Signal other worker threads FIXME is this needed?
+		if (count<bufferMax) {
 			pthread_cond_signal(&mast);
-			printf("Waking up the master\n");
+//			printf("Waking up the master\n");
 		}
 		pthread_mutex_unlock(&mutex);
-		printf("Worker unlocks\n");
+//		printf("Worker unlocks\n");
 		requestHandle(tempconnfd);
 		Close(tempconnfd);
 	}
 	return NULL;
 }
-
+/*
 void *masterStuff(void *arg) {
 	int clientlen, tempconnfd;
 	struct sockaddr_in clientaddr;
@@ -76,12 +80,13 @@ void *masterStuff(void *arg) {
 		pthread_mutex_lock(&mutex);
 		printf("Master locks\n");
 //		printf("confd=%d\n",connfd);
-		next_head=(head==bufferMax)?0:head+1;
-		while(next_head == tail) { // Queue full !
+		next_head=(head+1==bufferMax)?0:head+1;
+		while(count==bufferMax) { // Queue full !
 			printf("Queue full, master will wait\n");
 			pthread_cond_wait(&mast, &mutex);
 		}
 		buffer[head] = tempconnfd;
+		count++;
 		head = next_head;
 		printf("head=%d tail=%d master connfd=%d \n",head, tail, tempconnfd);
 		pthread_cond_signal(&work);
@@ -90,17 +95,17 @@ void *masterStuff(void *arg) {
 	}
 	return NULL;
 }
-
+*/
 int main(int argc, char *argv[])
 {
     int port, numThreads;
 
     getargs(&port, &numThreads, &bufferMax, argc, argv);
-    int *buffer = malloc(bufferMax*sizeof(int));; 
+    buffer = malloc(bufferMax*sizeof(int));; 
     // 
     // CS537: Create some threads...
     //
-    pthread_t master;
+ //   pthread_t master;
     pthread_t *worker=malloc(numThreads*sizeof(pthread_t));
     char *args[1];
     args[0] = (char*)&buffer;
@@ -110,12 +115,34 @@ int main(int argc, char *argv[])
 	// Save the relevant info in a buffer and have one of the worker threads 
 	// do the work.
 	// 
-    pthread_create(&master, NULL, masterStuff, &args);
+ //   pthread_create(&master, NULL, masterStuff, &args);
     int i=0;
     for(; i<numThreads; i++) {
     	pthread_create(&worker[i], NULL, workerStuff, &args);
     }
-    pthread_join(master, NULL);
+
+	int clientlen, tempconnfd;
+	struct sockaddr_in clientaddr;
+	clientlen = sizeof(clientaddr);
+	while (1) {
+//		printf("before accept!\n");
+		tempconnfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
+//		printf("after accept!\n");
+		pthread_mutex_lock(&mutex);
+//		printf("Master locks\n");
+//		printf("confd=%d\n",connfd);
+		while(count==bufferMax) { // Queue full !
+//			printf("Queue full, master will wait\n");
+			pthread_cond_wait(&mast, &mutex);
+		}
+		buffer[head] = tempconnfd;
+		count++;
+		head = (head+1==bufferMax)?0:head+1;
+//		printf("head=%d tail=%d master connfd=%d \n",head, tail, tempconnfd);
+		pthread_cond_signal(&work);
+		pthread_mutex_unlock(&mutex);
+//		printf("Master unlocks\n");
+	}
     return 0;
 }
 
