@@ -216,17 +216,17 @@ void *workerStuff(void *arg) {
 			pthread_cond_wait(&work, &mutex);
 			
 		}
-		printf("Worker going to work\n");
+		//printf("Worker going to work\n");
 		Data_T job=dequeue(&q);//get shortest job from the queue
 		tempconnfd = job.connfd;
 	//	printf("worker pid=%lu connfd=%d buffer=%p buffer[tail-1]=%d\n", (unsigned long)pthread_self(),tempconnfd, buffer, buffer[tail-1]);
 	//	pthread_cond_signal(&work); //Signal other worker threads FIXME is this needed?
 		if (!isFull(&q)) {
 			pthread_cond_signal(&mast);
-			printf("Waking up the master\n");
+		//	printf("Waking up the master\n");
 		}
 		pthread_mutex_unlock(&mutex);
-		printf("Worker unlocks and going to handle\n");
+		//printf("Worker unlocks and going to handle\n");
 		//requestHandle(tempconnfd);
 		workerHandle(&job);
 		Close(tempconnfd);
@@ -241,10 +241,10 @@ void *masterStuff(void *arg) {
 	while (1) {
 		tempconnfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
 		pthread_mutex_lock(&mutex);
-		printf("Master locks\n");
+		//printf("Master locks\n");
 //		printf("confd=%d\n",connfd);
 		while(isFull(&q)) { // Queue full !
-			printf("Queue full, master will wait\n");
+		//	printf("Queue full, master will wait\n");
 			pthread_cond_wait(&mast, &mutex);
 		}
 		Data_T job;
@@ -254,7 +254,7 @@ void *masterStuff(void *arg) {
 	//	printf("head=%d tail=%d master connfd=%d \n",head, tail, tempconnfd);
 		pthread_cond_signal(&work);
 		pthread_mutex_unlock(&mutex);
-		printf("Master unlocks\n");
+		//printf("Master unlocks\n");
 	}
 	return NULL;
 }
